@@ -1,19 +1,21 @@
 from collections.abc import Callable
-from typing import Any, Concatenate, Protocol, TypeAlias, TypeVar
+from typing import Any, Concatenate, Generic, Protocol, TypeAlias, TypeVar
 
 from url_matcher import Patterns, URLMatcher
 
 
 class Response(Protocol):
-    url: str
+    @property
+    def url(self) -> str: ...
 
 
-Spider: TypeAlias = object
-Callback: TypeAlias = Callable[Concatenate[Response, ...], Any]
+ResponseT = TypeVar("ResponseT", bound=Response)
+SpiderT = TypeVar("SpiderT")
+Callback: TypeAlias = Callable[Concatenate[SpiderT, ResponseT, ...], Any]
 CallbackT = TypeVar("CallbackT", bound=Callback)
 
 
-class Router:
+class Router(Generic[ResponseT, SpiderT]):
     """URL-based router for Scrapy spiders.
 
     Provides declarative URL routing for spider callbacks using URL patterns.
@@ -58,7 +60,7 @@ class Router:
         """
         self.matcher = URLMatcher() if matcher is None else matcher
 
-    def dispatch(self, response: Response, spider: Spider, **kwargs) -> Any | None:
+    def dispatch(self, response: ResponseT, spider: SpiderT, **kwargs) -> Any:
         """Dispatch a response to the matching callback.
 
         Matches the response URL against registered patterns and calls the
@@ -117,7 +119,7 @@ class Router:
             ```
         """
 
-        def callback(spider: Spider, response: Response, **kwargs):
+        def callback(spider: SpiderT, response: ResponseT, **kwargs) -> Any:
             return self.dispatch(response, spider, **kwargs)
 
         return callback
@@ -127,13 +129,13 @@ class Router:
     ) -> Callable[[CallbackT], CallbackT]:
         """Register a callback for URL patterns.
 
-        Decorates a spider method to handle responses matching the given
-        URL patterns. The decorated method will be called automatically when
-        `dispatcher()` matches a URL.
+        Decorates a spider method to handle responses matching the given URL
+        patterns. Patterns use url-matcher syntax. The decorated method will be
+        called automatically when `dispatcher()` matches a URL.
 
         Args:
             include: URL pattern(s) to match. Can be a single pattern string
-                or a list of patterns. Patterns use url-matcher syntax.
+                or a list of patterns.
             exclude: Optional URL pattern(s) to exclude. Can be a single
                 pattern string or a list of patterns.
 
