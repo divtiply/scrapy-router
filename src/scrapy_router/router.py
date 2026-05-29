@@ -85,11 +85,13 @@ class Router:
             creates a callback suitable for use as a spider's `parse()` method.
         """
         callback = self.matcher.match(response.url)
+        if callable(callback):
+            return callback(spider, response, **kwargs)
         if isinstance(callback, str):
             callback = getattr(spider, callback, None)
-        if not callable(callback):
-            return None
-        return callback(spider, response, **kwargs)
+            if callable(callback):
+                return callback(response, **kwargs)
+        return None
 
     def dispatcher(self) -> Callback:
         """Create a callback suitable for the spider's `parse()` method.
